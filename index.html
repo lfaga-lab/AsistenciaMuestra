@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Asistencia — Preceptoría</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <meta name="theme-color" content="#24496e" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+
+</head>
+<body>
+  <div id="app" class="app">
+    <header class="topbar">
+      <button id="btnMenu" class="icon-btn" aria-label="Menú" hidden>☰</button>
+      <div class="brand">
+        <div class="dot"></div>
+        <div>
+          <div class="brand-title">Asistencia</div>
+          <div class="brand-sub">Preceptoría</div>
+        </div>
+      </div>
+
+      <div id="sectionTitle" class="section-title" hidden>Sección</div>
+
+      <nav class="tabs" id="tabs" hidden>
+  <button class="tab is-active" data-view="tomar" data-emoji="📋">Tomar lista</button>
+  <button class="tab" data-view="editar" data-emoji="✏️">Editar</button>
+  <button class="tab" data-view="stats" data-emoji="📈">Estadísticas</button>
+  <button class="tab" data-view="reportes" data-emoji="🧾">Reportes</button>
+  <button class="tab" data-view="alertas" data-emoji="🚨">Alertas</button>
+</nav>
+
+      <div class="top-actions">
+        <button id="btnLogout" class="btn btn-ghost" hidden>Salir</button>
+      </div>
+    </header>
+
+    <!-- DRAWER (mobile) -->
+    <div id="drawer" class="drawer" aria-hidden="true">
+      <div class="drawer-overlay" data-drawer-close="1"></div>
+      <aside class="drawer-panel" role="dialog" aria-label="Menú">
+        <div class="drawer-head">
+          <div class="drawer-brand">Asistencia</div>
+          <button class="icon-btn" data-drawer-close="1" aria-label="Cerrar">✕</button>
+        </div>
+        <nav id="drawerNav" class="drawer-nav"></nav>
+        <div class="drawer-foot muted">Seleccioná una sección</div>
+      </aside>
+    </div>
+
+
+    <main class="main">
+      <!-- LOGIN -->
+      <section id="viewLogin" class="view">
+        <div class="card login-card">
+          <h1>Ingresar</h1>
+          <p class="muted">Entrá con tu <b>email</b> y tu <b>PIN</b>.</p>
+
+          <label class="field">
+            <span>Email</span>
+            <input id="loginEmail" type="email" placeholder="preceptor@escuela.edu.ar" autocomplete="username" />
+          </label>
+          <label class="field">
+            <span>PIN</span>
+            <input id="loginPin" type="password" inputmode="numeric" placeholder="••••" autocomplete="current-password" />
+          </label>
+
+          <button id="btnLogin" class="btn btn-primary">Entrar</button>
+
+          <div id="loginError" class="callout danger" hidden></div>
+
+          <details class="help">
+            <summary>¿Cómo se configura?</summary>
+            <ol>
+              <li>Se usa Supabase (Postgres) como base de datos (users, courses, course_users, students, sessions, records, audit).</li>
+              <li>El backend es una Supabase Edge Function que escribe/lee la base.</li>
+              <li>El frontend (esto) va en GitHub Pages.</li>
+            </ol>
+          </details>
+        </div>
+      </section>
+
+      <!-- TOMAR LISTA -->
+      <section id="viewTomar" class="view" hidden>
+        <div class="panel">
+          <div class="panel-row">
+            <div class="controls">
+              <label class="field compact">
+                <span>Curso</span>
+                <select id="selCourse"></select>
+              </label>
+
+              <label class="field compact">
+                <span>Fecha</span>
+                <input id="selDate" type="date" />
+              </label>
+
+              <label class="field compact">
+                <span>Tipo</span>
+                <select id="selContext">
+                  <option value="REGULAR">Clase regular</option>
+                  <option value="ED_FISICA">Ed. Física (contraturno)</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="controls">
+              <button id="btnLoadSession" class="btn">Cargar</button>
+              <button id="btnCloseSession" class="btn btn-ghost" title="Cierra la sesión del día (opcional).">Cerrar día</button>
+            </div>
+          </div>
+
+          <div id="sessionMeta" class="meta muted"></div>
+        </div>
+
+        <div class="tinder-wrap">
+          <div id="cardStack" class="card-stack" aria-live="polite"></div>
+
+          <div class="actions">
+            <button class="pill" id="btnAbsent" title="AUSENTE (←)">AUSENTE</button>
+            <button class="pill" id="btnLate" title="TARDE (↑)">TARDE</button>
+            <button class="pill" id="btnVerify" title="VERIFICAR LUEGO (↓)">VERIFICAR LUEGO</button>
+            <button class="pill is-primary" id="btnPresent" title="PRESENTE (→)">PRESENTE</button>
+          </div>
+
+          <div class="hint muted">
+            Tip: podés arrastrar la tarjeta. → Presente, ← Ausente, ↑ Tarde, ↓ Verificar.
+          </div>
+
+          <div id="progress" class="progress muted"></div>
+          <div id="verifyBanner" class="callout" hidden style="margin-top:10px"></div>
+
+        <div class="panel" id="takeSummaryPanel" style="margin-top:14px">
+          <div class="panel-row" style="align-items:center">
+            <h3 class="panel-title" style="margin:0">Resumen del curso (asistencia acumulada)</h3>
+            <div id="takeSummaryMeta" class="meta muted" style="margin-left:auto"></div>
+          </div>
+          <div id="takeSummaryList" class="list" style="margin-top:10px"></div>
+        </div>
+
+        </div>
+      </section>
+
+      <!-- EDITAR -->
+      <section id="viewEditar" class="view" hidden>
+        <div class="panel">
+          <div class="panel-row">
+            <div class="controls">
+              <label class="field compact">
+                <span>Curso</span>
+                <select id="editCourse"></select>
+              </label>
+              <label class="field compact">
+                <span>Fecha</span>
+                <input id="editDate" type="date" />
+              </label>
+              <label class="field compact">
+                <span>Tipo</span>
+                <select id="editContext">
+                  <option value="REGULAR">Clase regular</option>
+                  <option value="ED_FISICA">Ed. Física (contraturno)</option>
+                </select>
+              </label>
+            </div>
+            <div class="controls">
+              <button id="btnLoadEdit" class="btn">Ver registros</button>
+            </div>
+          </div>
+          <div class="muted meta">Tocá un estudiante para cambiar el estado. Podés editar días anteriores.</div>
+        </div>
+
+        <div id="editList" class="list"></div>
+      </section>
+
+      <!-- ESTADÍSTICAS -->
+      <section id="viewStats" class="view" hidden>
+        <div class="panel">
+          <div class="panel-row">
+            <div class="controls">
+              <label class="field compact">
+                <span>Curso</span>
+                <select id="statsCourse"></select>
+              </label>
+              
+              <input id="statsFrom" type="hidden" />
+              <input id="statsTo" type="hidden" />
+              <select id="statsContext" style="display:none">
+                <option value="ALL" selected>Todos</option>
+                <option value="REGULAR">Regular</option>
+                <option value="ED_FISICA">Ed. Física</option>
+              </select>
+</div>
+            <div class="controls">
+              <button id="btnLoadStats" class="btn">Actualizar</button>
+              <button id="btnQuickWeek" class="btn btn-ghost">Semana</button>
+              <button id="btnQuickMonth" class="btn btn-ghost">Mes</button>
+            </div>
+          </div>
+        </div>
+
+        
+        <div class="panel">
+          <div class="panel-row" style="align-items:flex-end">
+            <div class="controls">
+              <label class="field compact">
+                <span>Comparativo por curso</span>
+                <select id="chartPeriod">
+                  <option value="dia">Día</option>
+                  <option value="semana">Semana</option>
+                  <option value="mes">Mes</option>
+                  <option value="general">General</option>
+                </select>
+              </label>
+              <label class="field compact" id="chartDayWrap">
+                <span>Fecha</span>
+                <input id="chartDay" type="date" />
+              </label>
+              <label class="field compact" id="chartWeekWrap" hidden>
+                <span>Semana (Lun–Vie)</span>
+                <select id="chartWeek"></select>
+              </label>
+              <label class="field compact" id="chartMonthWrap" hidden>
+                <span>Mes</span>
+                <select id="chartMonth"></select>
+              </label>
+            </div>
+            <div class="controls">
+              <label class="field" style="min-width:180px">
+                <span class="lbl">Métrica</span>
+                <select id="chartMetric">
+                  <option value="attendance_pct">Asistencia (%)</option>
+                  <option value="absences_equiv">Faltas (equiv.)</option>
+                  <option value="absences_count">Ausentes (N)</option>
+                </select>
+              </label>
+              <button id="btnLoadChart" class="btn btn-ghost">Actualizar gráfico</button>
+            </div>
+          </div>
+          <div class="muted meta">Una barra por curso • elegí si querés ver <b>Asistencia (%)</b>, <b>Faltas (equiv.)</b> (Ed. Física=½, Tarde=¼) o <b>Ausentes (N)</b>.</div>
+          <div id="courseChart" class="course-chart"></div>
+        </div>
+
+
+        <div id="statsCards" class="stats-grid"></div>
+        <div class="panel">
+          <h3 class="panel-title">Resumen por día</h3>
+          <div id="statsDaily" class="bars"></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-row" style="align-items:center">
+            <h3 class="panel-title" style="margin:0">Conteo por estudiante</h3>
+            <div class="controls">
+              <label class="field compact" style="margin:0">
+                <span>Buscar</span>
+                <input id="studentsSearch" type="search" placeholder="Apellido o nombre…" style="min-width:240px" />
+              </label>
+              <label class="field compact" style="margin:0">
+                <span>Orden</span>
+                <select id="studentsSort">
+                  <option value="ausentes">Más ausentes</option>
+                  <option value="pct">Mayor % inasistencia</option>
+                  <option value="nombre">Nombre A→Z</option>
+                  <option value="presentes">Más presentes</option>
+                  <option value="tardes">Más tardes</option>
+                  <option value="verificar">Más verificar</option>
+                </select>
+              </label>
+            </div>
+          </div>
+          <div id="studentsStats" class="list" style="margin-top:10px"></div>
+        </div>
+      </section>
+
+
+      <!-- REPORTES -->
+      <section id="viewReportes" class="view" hidden>
+        <div class="panel">
+          <div class="panel-row">
+            <div class="controls">
+              <label class="field compact">
+                <span>Tipo</span>
+                <select id="repType">
+                  <option value="student">Por estudiante</option>
+                  <option value="course">Por curso</option>
+                </select>
+              </label>
+              <label class="field compact">
+                <span>Curso</span>
+                <select id="repCourse"></select>
+              </label>
+              <label class="field compact" id="repStudentWrap">
+                <span>Estudiante</span>
+                <select id="repStudent"></select>
+              </label>
+              <label class="field compact">
+                <span>Desde</span>
+                <input id="repFrom" type="date" />
+              </label>
+              <label class="field compact">
+                <span>Hasta</span>
+                <input id="repTo" type="date" />
+              </label>
+              <label class="field compact">
+                <span>Tipo</span>
+                <select id="repContext">
+                  <option value="ALL">Todos</option>
+                  <option value="REGULAR">Regular</option>
+                  <option value="ED_FISICA">Ed. Física</option>
+                </select>
+              </label>
+            </div>
+          </div>
+
+          <div class="panel-row">
+            <div class="controls" style="flex:1">
+              <label class="field compact" style="min-width:220px">
+                <span>Título</span>
+                <input id="repTitle" type="text" placeholder="Reporte de asistencia" />
+              </label>
+              <label class="field compact" style="min-width:260px">
+                <span>Subtítulo</span>
+                <input id="repSubtitle" type="text" placeholder="Curso / Institución / Período" />
+              </label>
+              <label class="field compact">
+                <span>Opciones</span>
+                <div class="checkline">
+                  <label><input type="checkbox" id="repIncludeDetail" checked /> Incluir detalle por fecha</label>
+                  <label><input type="checkbox" id="repIncludeNotes" checked /> Incluir notas</label>
+                  <label><input type="checkbox" id="repIncludeSignature" /> Línea de firma</label>
+                </div>
+              </label>
+              <label class="field compact" style="min-width:260px">
+                <span>Nota al pie</span>
+                <input id="repFootnote" type="text" placeholder="Emitido por Preceptoría" />
+              </label>
+            </div>
+            <div class="controls">
+              <button id="btnBuildReport" class="btn">Vista previa</button>
+              <button id="btnPrintReport" class="btn btn-primary">Imprimir / PDF</button>
+            </div>
+          </div>
+
+          <div class="muted meta">La emisión en PDF se hace con la impresión del navegador (Guardar como PDF).</div>
+        </div>
+
+        <div class="panel report-panel">
+          <div id="reportPreview" class="report-preview">
+            <div class="muted">Generá una vista previa…</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ALERTAS -->
+      <section id="viewAlertas" class="view" hidden>
+        <div class="panel">
+          <div class="panel-row">
+            <div class="controls">
+              <label class="field compact">
+                <span>Curso</span>
+                <select id="alertsCourse"></select>
+              </label>
+              <label class="field compact">
+                <span>Hasta</span>
+                <input id="alertsTo" type="date" />
+              </label>
+              <label class="field compact">
+                <span>Tipo</span>
+                <select id="alertsContext">
+                  <option value="ALL">Todos</option>
+                  <option value="REGULAR">Regular</option>
+                  <option value="ED_FISICA">Ed. Física</option>
+                </select>
+              </label>
+            </div>
+            <div class="controls">
+              <button id="btnLoadAlerts" class="btn">Ver alertas</button>
+            </div>
+          </div>
+          <div class="muted meta">
+            Alertas pendientes del curso. Marcá <b>AVISADO</b> para resolver y que desaparezca.</div>
+        </div>
+
+        <div id="alertsList" class="list"></div>
+      </section>
+
+      <!-- MODAL -->
+      <div id="modal" class="modal" hidden>
+        <div class="modal-backdrop" data-close="1"></div>
+        <div class="modal-card">
+          <div class="modal-head">
+            <div class="modal-title" id="modalTitle">Editar</div>
+            <button class="btn btn-ghost" data-close="1">Cerrar</button>
+          </div>
+          <div class="modal-body" id="modalBody"></div>
+        </div>
+      </div>
+
+      <!-- TOAST -->
+      <div id="toast" class="toast" hidden></div>
+    </main>
+
+    <footer class="footer muted">
+      <span>Minimal • rápido • hecho para preceptores</span>
+    </footer>
+  </div>
+
+  <script src="./config.js"></script>
+  <script src="./api.js"></script>
+  <script src="./app.js"></script>
+  <script src="./mobile-nav.js"></script>
+  <script src="./pwa.js"></script>
+</body>
+</html>
