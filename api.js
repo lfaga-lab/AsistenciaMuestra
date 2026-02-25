@@ -2,7 +2,7 @@
 const Api = (() => {
   const CFG = (window.APP_CONFIG || {});
   const SUPABASE_URL = (CFG.SUPABASE_URL || "").replace(/\/$/, "");
-  const FUNCTION_NAME = CFG.FUNCTION_NAME || "asistencia-api";
+  const FUNCTION_NAME = CFG.FUNCTION_NAME || "quick-service";
   const API_URL = CFG.API_URL || (SUPABASE_URL ? `${SUPABASE_URL}/functions/v1/${FUNCTION_NAME}` : "");
   const ANON_KEY = CFG.SUPABASE_ANON_KEY || "";
 
