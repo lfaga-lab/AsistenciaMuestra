@@ -463,7 +463,7 @@ function tally(c: any, status: string) {
 async function handleGetStats(me: Me, body: any) {
   const course_id = String(body?.course_id ?? "ALL").trim();
   const from = String(body?.from ?? "").trim();
-  const to = String(body?.to ?? "").trim();
+  const to = String(body?.to ?? new Date().toISOString().slice(0,10)).trim();
   const context = String(body?.context ?? "ALL").trim();
   if (!from || !to) throw new Error("Faltan from/to.");
 

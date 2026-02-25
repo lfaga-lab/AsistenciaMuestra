@@ -518,7 +518,7 @@
 
     populateSelect(UI.$("#selCourse"), State.courses);
     populateSelect(UI.$("#editCourse"), State.courses);
-    populateSelect(UI.$("#repCourse"), State.courses);
+    populateSelect(UI.$("#repCourse"), State.courses, { includeAll: true, allLabel: "Toda la escuela" });
     populateSelect(UI.$("#alertsCourse"), State.courses, { includeAll: true, allLabel: "Todos los cursos" });
     populateSelect(UI.$("#statsCourse"), State.courses, { includeAll: true, allLabel: "Todos los cursos" });
 
@@ -1690,10 +1690,20 @@
 
   async function onReportCourseChange() {
     const course_id = UI.$("#repCourse").value;
-    if (!course_id) return;
-    const students = await getStudents(course_id);
     const sel = UI.$("#repStudent");
+    if (!sel) return;
+
     sel.innerHTML = "";
+
+    if (!course_id || course_id === "ALL") {
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.textContent = "Seleccioná un curso";
+      sel.appendChild(opt);
+      return;
+    }
+
+    const students = await getStudents(course_id);
     (students || []).forEach((s) => {
       const opt = document.createElement("option");
       opt.value = s.student_id;
@@ -1706,6 +1716,10 @@
     ev && ev.preventDefault && ev.preventDefault();
     const type = UI.$("#repType").value;
     const course_id = UI.$("#repCourse").value;
+    if (type === "student" && course_id === "ALL") {
+      UI.toast("Para reporte por estudiante, elegí un curso específico.");
+      return;
+    }
     let from = UI.$("#repFrom").value || UI.todayISO();
     let to = UI.$("#repTo").value || UI.todayISO();
     const context = UI.$("#repContext").value || "ALL";
@@ -1744,7 +1758,7 @@
           includeDetail,
           includeNotes,
           includeSig,
-          course_name: getCourseName(course_id),
+          course_name: course_id === "ALL" ? "Toda la escuela" : getCourseName(course_id),
           student_name,
           from,
           to,
@@ -1765,7 +1779,7 @@
           includeDetail,
           includeNotes,
           includeSig,
-          course_name: getCourseName(course_id),
+          course_name: course_id === "ALL" ? "Toda la escuela" : getCourseName(course_id),
           from,
           to,
           context,
@@ -2113,7 +2127,7 @@
         row.querySelector('[data-act="ack"]').addEventListener("click", async (e) => {
           e.preventDefault();
           e.stopPropagation();
-          const r = await Api.ackAlert(a.student_id, a.course_id, context);
+          const r = await Api.ackAlert(a.student_id, a.course_id, to, context);
           if (!r || !r.ok) {
             UI.toast((r && r.error) ? r.error : "No se pudo marcar como avisado");
             return;
